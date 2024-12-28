@@ -1,1 +1,1 @@
-# spotispect
+# SpotiSpect
