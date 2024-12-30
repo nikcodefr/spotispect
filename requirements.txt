@@ -2,3 +2,4 @@ spotipy
 streamlit
 pandas
 python-dotenv
+plotly
