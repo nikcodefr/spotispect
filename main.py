@@ -44,7 +44,7 @@ def home_page():
 
 # Login Page
 def login_page():
-    st.title('Authenticating...')
+    st.title('Authentication')
     try:
         # Get Spotify token
         if st.session_state.spotify_token is None:
@@ -73,9 +73,17 @@ def dashboard_page():
     artist_search = st.text_input("Search for an artist:")
 
     if artist_search:
-        results = sp.search(q=artist_search, type='artist', limit=1)
-        if results['artists']['items']:
-            artist = results['artists']['items'][0]
+        results = sp.search(q=artist_search, type='artist', limit=50)  # Fetch up to 50 results
+        exact_match_artist = None
+
+        # Filter for an exact match (case-insensitive)
+        for artist in results['artists']['items']:
+            if artist['name'].lower() == artist_search.lower():
+                exact_match_artist = artist
+                break
+
+        if exact_match_artist:
+            artist = exact_match_artist
             st.subheader(f"Artist: {artist['name']}")
             
             # Display artist's profile picture
@@ -155,16 +163,20 @@ def global_dashboard(sp, artist):
     # Genre Analysis
     genres = artist['genres']
     genre_df = pd.DataFrame({'Genre': genres, 'Count': [1] * len(genres)})
+    #Plot pie chart
     fig = px.pie(genre_df, names='Genre', values='Count', title="Genre Distribution")
     st.plotly_chart(fig)
 
 # Main App Logic
-if st.session_state.current_page == 'home':
+page = st.session_state.get('current_page', 'home')
+
+if page == 'home':
     home_page()
-elif st.session_state.current_page == 'login':
+elif page == 'login':
     login_page()
-elif st.session_state.current_page == 'dashboard':
+elif page == 'dashboard':
     dashboard_page()
+
 
 
 
