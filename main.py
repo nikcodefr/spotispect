@@ -37,14 +37,20 @@ def navigate_to(page_name):
 
 # Home Page
 def home_page():
-    st.title('Spotify Song Analysis')
-    st.write("Analyze your favorite songs and artists, and explore global trends!")
+    st.header("Spotify Artist Analysis", divider="green")
+    st.write("Analyze how you and the world listen to your favourite artists.")
+    st.markdown("""
+        - Explore personalized metrics for your favorite artists.
+        - View global popularity and trends of top artists.
+        - Visualize listening habits with charts and graphs.
+    """)
+    st.markdown("Grant authorization to proceed.", help="info")
     if st.button('Login with Spotify'):
         navigate_to('login')
 
 # Login Page
 def login_page():
-    st.title('Authentication')
+    st.title('Authorization Status')
     try:
         # Get Spotify token
         if st.session_state.spotify_token is None:
