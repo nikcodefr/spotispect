@@ -6,18 +6,14 @@ import os
 from dotenv import load_dotenv
 import plotly.express as px
 
-# Load environment variables
 load_dotenv()
 
-# Spotify API credentials
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URI = 'http://localhost:5000'
 
-# Streamlit app configuration
-st.set_page_config(page_title="Spotify Song Analysis", page_icon=":musical_note:", layout="wide")
+st.set_page_config(page_title="SpotiSpect", page_icon=":musical_note:", layout="wide")
 
-# Initialize Spotify API with show_dialog=True
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
@@ -26,7 +22,6 @@ auth_manager = SpotifyOAuth(
     show_dialog=True
 )
 
-# Simulate routing with session state
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 if 'spotify_token' not in st.session_state:
@@ -35,54 +30,46 @@ if 'spotify_token' not in st.session_state:
 def navigate_to(page_name):
     st.session_state.current_page = page_name
 
-# Home Page
 def home_page():
-    st.header("Spotify Artist Analysis", divider="green")
-    st.write("Analyze how you and the world listen to your favourite artists.")
+    st.header("Spotify Artist Insights", divider="green")
+    st.write("Analyze how you and the world listen to your favourite artists on Spotify.")
     st.markdown("""
         - Explore personalized metrics for your favorite artists.
         - View global popularity and trends of top artists.
         - Visualize listening habits with charts and graphs.
     """)
-    st.markdown("Grant authorization to proceed.", help="info")
-    if st.button('Login with Spotify'):
+    st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
+    if st.button('Login with Spotify', help="Click twice to proceed. [Know Why](https://docs.streamlit.io/develop/concepts/design/buttons#:~:text=Buttons%20created%20with,becomes%20False.)."):
         navigate_to('login')
 
-# Login Page
 def login_page():
     st.title('Authorization Status')
     try:
-        # Get Spotify token
         if st.session_state.spotify_token is None:
             token = auth_manager.get_access_token(as_dict=False)
             st.session_state.spotify_token = token
         sp = spotipy.Spotify(auth=st.session_state.spotify_token)
         
-        # Fetch user information
         user = sp.current_user()
         st.success(f"Logged in as {user['display_name']}")
         
-        if st.button('Go to Dashboard'):
+        if st.button('Go to Dashboard', help="Click twice to proceed. [Know Why](https://docs.streamlit.io/develop/concepts/design/buttons#:~:text=Buttons%20created%20with,becomes%20False.)."):
             navigate_to('dashboard')
     except Exception as e:
         st.error("Login failed. Please try again.")
         st.write(e)
 
-# Dashboard Page
 def dashboard_page():
     st.title('Dashboard')
 
-    # Initialize Spotify API using stored token
     sp = spotipy.Spotify(auth=st.session_state.spotify_token)
 
-    # Single search bar for both User and Global metrics
     artist_search = st.text_input("Search for an artist:")
 
     if artist_search:
-        results = sp.search(q=artist_search, type='artist', limit=50)  # Fetch up to 50 results
+        results = sp.search(q=artist_search, type='artist', limit=50)  
         exact_match_artist = None
 
-        # Filter for an exact match (case-insensitive)
         for artist in results['artists']['items']:
             if artist['name'].lower() == artist_search.lower():
                 exact_match_artist = artist
@@ -92,11 +79,9 @@ def dashboard_page():
             artist = exact_match_artist
             st.subheader(f"Artist: {artist['name']}")
             
-            # Display artist's profile picture
             if artist['images']:
                 st.image(artist['images'][0]['url'], width=200, caption=artist['name'])
 
-            # Simulate tabbed navigation for user and global metrics
             option = st.radio("Choose Dashboard:", ['User Metrics', 'Global Metrics'])
 
             if option == 'User Metrics':
@@ -104,9 +89,8 @@ def dashboard_page():
             else:
                 global_dashboard(sp, artist)
         else:
-            st.error("Artist not found. Please try again.")
+            st.error("Artist not found. Please enter the correct name and try again.")
 
-# User Dashboard
 def user_dashboard(sp, artist):
     st.header("User Metrics")
 
@@ -114,13 +98,12 @@ def user_dashboard(sp, artist):
     user_tracks = sp.current_user_recently_played(limit=50)
     artist_tracks = []
 
-    # Extract streams and track names for the inputted artist
     for item in user_tracks['items']:
         track = item['track']
         if artist_name.lower() in [artist.lower() for artist in [a['name'] for a in track['artists']]]:
             artist_tracks.append({
                 'Track Name': track['name'],
-                'Streams': track['popularity']  # Popularity as a proxy for streams
+                'Streams': track['popularity'] 
             })
 
     if artist_tracks:
@@ -129,31 +112,26 @@ def user_dashboard(sp, artist):
         fig = px.bar(df, x='Track Name', y='Streams', title=f"Streams for {artist_name}", labels={'Streams': 'Stream Count', 'Track Name': 'Tracks'})
         st.plotly_chart(fig)
     else:
-        st.write("No tracks by this artist found in your listening history.")
+        st.write("You have not listened to this artist recently.")
 
-    # Listening History Metrics
     recent_tracks = sp.current_user_recently_played(limit=50)
     artist_plays = [item['track']['artists'][0]['name'] for item in recent_tracks['items']]
     artist_count = artist_plays.count(artist['name'])
-    st.metric("Total Plays for Artist", artist_count)
+    st.metric("Recent Plays for Artist", artist_count)
 
-    # Time of Day Preferences (Example Heatmap)
     timestamps = [pd.Timestamp(item['played_at']).hour for item in recent_tracks['items']]
     time_df = pd.DataFrame({'Hour': timestamps}).value_counts().reset_index(name='Count')
     fig = px.density_heatmap(time_df, x='Hour', y='Count', title="Time of Day Preferences")
     st.plotly_chart(fig)
 
-# Global Dashboard
 def global_dashboard(sp, artist):
     st.header("Global Metrics")
 
-    # Artist Popularity
     popularity = artist['popularity']
     followers = artist['followers']['total']
     st.metric("Popularity Score", popularity)
     st.metric("Follower Count", followers)
 
-    # Top Tracks Globally
     top_tracks = sp.artist_top_tracks(artist['id'])['tracks']
     track_names = [track['name'] for track in top_tracks]
     track_popularity = [track['popularity'] for track in top_tracks]
@@ -166,14 +144,12 @@ def global_dashboard(sp, artist):
     st.subheader("Top Tracks by Popularity")
     st.bar_chart(df_global_tracks.set_index('Track Name'))
 
-    # Genre Analysis
     genres = artist['genres']
     genre_df = pd.DataFrame({'Genre': genres, 'Count': [1] * len(genres)})
-    #Plot pie chart
+
     fig = px.pie(genre_df, names='Genre', values='Count', title="Genre Distribution")
     st.plotly_chart(fig)
 
-# Main App Logic
 page = st.session_state.get('current_page', 'home')
 
 if page == 'home':
