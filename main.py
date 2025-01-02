@@ -43,7 +43,7 @@ def home_page():
         navigate_to('login')
 
 def login_page():
-    st.title('Authorization Status')
+    st.header('Authorization Status', divider="green")
     try:
         if st.session_state.spotify_token is None:
             token = auth_manager.get_access_token(as_dict=False)
@@ -60,7 +60,7 @@ def login_page():
         st.write(e)
 
 def dashboard_page():
-    st.title('Dashboard')
+    st.header('Dashboard', divider="green")
 
     sp = spotipy.Spotify(auth=st.session_state.spotify_token)
 
@@ -106,23 +106,37 @@ def user_dashboard(sp, artist):
                 'Streams': track['popularity'] 
             })
 
+    recent_tracks = sp.current_user_recently_played(limit=50)
+    artist_plays = [item['track']['artists'][0]['name'] for item in recent_tracks['items']]
+    artist_count = artist_plays.count(artist['name'])
+    st.metric(f"Recent Plays for {artist_name}", artist_count, help="Based on the last 50 tracks you played on Spotify.")
+
     if artist_tracks:
         df = pd.DataFrame(artist_tracks)
-        st.subheader(f"Number of Streams for Tracks by {artist_name}")
         fig = px.bar(df, x='Track Name', y='Streams', title=f"Streams for {artist_name}", labels={'Streams': 'Stream Count', 'Track Name': 'Tracks'})
+        fig.update_traces(marker_color = "#1cc658")
         st.plotly_chart(fig)
     else:
         st.write("You have not listened to this artist recently.")
 
-    recent_tracks = sp.current_user_recently_played(limit=50)
-    artist_plays = [item['track']['artists'][0]['name'] for item in recent_tracks['items']]
-    artist_count = artist_plays.count(artist['name'])
-    st.metric("Recent Plays for Artist", artist_count)
-
-    timestamps = [pd.Timestamp(item['played_at']).hour for item in recent_tracks['items']]
-    time_df = pd.DataFrame({'Hour': timestamps}).value_counts().reset_index(name='Count')
-    fig = px.density_heatmap(time_df, x='Hour', y='Count', title="Time of Day Preferences")
-    st.plotly_chart(fig)
+    timestamps_with_day = [
+    {
+        'Hour': pd.Timestamp(item['played_at']).hour,
+        'Day': pd.Timestamp(item['played_at']).day_name()
+    }
+    for item in recent_tracks['items']
+    ]
+    time_df_with_day = pd.DataFrame(timestamps_with_day).value_counts().reset_index(name='Count')
+    fig3 = px.density_heatmap(
+    time_df_with_day,
+    x='Hour',
+    y='Day',
+    z='Count',
+    color_continuous_scale=px.colors.sequential.Plasma,
+    title="Time and Day Listening Preferences",
+    labels={'Hour': 'Hour of the Day', 'Day': 'Day of the Week'}
+    )
+    st.plotly_chart(fig3)
 
 def global_dashboard(sp, artist):
     st.header("Global Metrics")
