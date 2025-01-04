@@ -12,7 +12,7 @@ load_dotenv()
 
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-REDIRECT_URI = 'https://spotispect.streamlit.app/'
+REDIRECT_URI = 'https://spotispect.streamlit.app/callback'
 
 st.set_page_config(page_title="SpotiSpect", page_icon="https://i.imgur.com/f2Omj8I.png", layout="wide")
 
@@ -25,6 +25,7 @@ auth_manager = SpotifyOAuth(
     cache_path=None
 )
 
+# Initialize session state variables
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 if 'spotify_token' not in st.session_state:
@@ -32,15 +33,16 @@ if 'spotify_token' not in st.session_state:
 if 'spotify_sp' not in st.session_state:
     st.session_state.spotify_sp = None
 if 'auth_url' not in st.session_state:
-    st.session_state.auth_url = None
+    st.session_state.auth_url = auth_manager.get_authorize_url()
+
+def navigate_to(page_name):
+    """Navigate to a different page."""
+    st.session_state.current_page = page_name
 
 def get_spotify_client():
     """Get a Spotify client, refreshing the token if necessary."""
     try:
         if not st.session_state.spotify_token or auth_manager.is_token_expired(st.session_state.spotify_token):
-            auth_url = auth_manager.get_authorize_url()
-            st.session_state.auth_url = auth_url
-
             token_info = auth_manager.get_access_token(as_dict=True)
             st.session_state.spotify_token = token_info
 
@@ -51,9 +53,6 @@ def get_spotify_client():
         navigate_to('login')
         return None
 
-def navigate_to(page_name):
-    st.session_state.current_page = page_name
-
 def home_page():
     st.header("Spotify Artist Insights", divider="green")
     st.write("Analyze how you and the world listen to your favourite artists on Spotify.")
@@ -63,30 +62,32 @@ def home_page():
         - Visualize listening habits with charts and graphs.
     """)
     st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
-    st.markdown(f'<a href="{auth_manager.get_authorize_url()}" style="background-color:green;color:white;text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{st.session_state.auth_url}" style="background-color:green;color:white;text-decoration:none;padding:10px;">Click to Login</a>', unsafe_allow_html=True)
     st.markdown("**:gray[Use PC for best experience.]**")
 
 def login_page():
     st.header('Authorization Status', divider="green")
-    
-    query_params = st.query_params()
+
+    # Debugging query parameters
+    query_params = st.experimental_get_query_params()
+    st.write("Query Parameters:", query_params)  # Debugging output
+
     if 'code' in query_params:
         try:
             auth_code = query_params['code'][0]
+            st.write("Authorization Code:", auth_code)  # Debugging output
             token_info = auth_manager.get_access_token(code=auth_code, as_dict=True)
             st.session_state.spotify_token = token_info
             st.session_state.spotify_sp = spotipy.Spotify(auth=token_info['access_token'])
             user = st.session_state.spotify_sp.current_user()
             st.success(f"Logged in as {user['display_name']}")
-            if st.button('Go to Dashboard', help="Click twice to proceed."):
+            if st.button('Go to Dashboard', help="Click to proceed."):
                 navigate_to('dashboard')
         except Exception as e:
             st.error("Login failed. Please try again.")
             st.write(e)
     else:
         if st.session_state.spotify_token is None:
-            if not st.session_state.auth_url:
-                st.session_state.auth_url = auth_manager.get_authorize_url()
             st.markdown(f'<a href="{st.session_state.auth_url}" style="color:green; text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
             st.stop()
 
@@ -428,15 +429,12 @@ def global_dashboard(sp, artist):
     fig = px.pie(genre_df, names='Genre', values='Count', title="Genre Distribution")
     st.plotly_chart(fig)
 
-page = st.session_state.get('current_page', 'home')
-
-if page == 'home':
+if st.session_state.current_page == 'home':
     home_page()
-elif page == 'login':
+elif st.session_state.current_page == 'login':
     login_page()
-elif page == 'dashboard':
+elif st.session_state.current_page == 'dashboard':
     dashboard_page()
-
 
 
 
