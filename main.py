@@ -62,7 +62,7 @@ if 'code' in query_params:
     st.header('Authorization Status', divider="green")
     try:
         auth_code = query_params['code'][0]
-        token_info = auth_manager.get_cached_token()
+        token_info = auth_manager.get_access_token(code=auth_code)
         st.session_state.spotify_token = token_info
         st.session_state.spotify_sp = spotipy.Spotify(auth=token_info['access_token'])
         user = st.session_state.spotify_sp.current_user()
