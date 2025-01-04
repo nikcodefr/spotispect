@@ -5,6 +5,8 @@ import pandas as pd
 import os
 from dotenv import load_dotenv
 import plotly.express as px
+from datetime import datetime
+import calendar, time
 
 load_dotenv()
 
@@ -12,7 +14,7 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URI = 'http://localhost:5000'
 
-st.set_page_config(page_title="SpotiSpect", page_icon=":musical_note:", layout="wide")
+st.set_page_config(page_title="SpotiSpect", page_icon="https://i.imgur.com/f2Omj8I.png", layout="wide")
 
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
@@ -26,6 +28,21 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
 if 'spotify_token' not in st.session_state:
     st.session_state.spotify_token = None
+if 'spotify_sp' not in st.session_state:
+    st.session_state.spotify_sp = None
+
+def get_spotify_client():
+    """Get a Spotify client, refreshing the token if necessary."""
+    try:
+        if not st.session_state.spotify_token or auth_manager.is_token_expired(st.session_state.spotify_token):
+            token_info = auth_manager.get_access_token(as_dict=True)
+            st.session_state.spotify_token = token_info
+        return spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
+    except Exception as e:
+        st.error("Error refreshing Spotify token. Please log in again.")
+        st.session_state.spotify_token = None
+        navigate_to('login')
+        return None
 
 def navigate_to(page_name):
     st.session_state.current_page = page_name
@@ -39,21 +56,21 @@ def home_page():
         - Visualize listening habits with charts and graphs.
     """)
     st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
-    if st.button('Login with Spotify', help="Click twice to proceed. [Know Why](https://docs.streamlit.io/develop/concepts/design/buttons#:~:text=Buttons%20created%20with,becomes%20False.)."):
+    if st.button('Login with Spotify', help="Click twice to proceed."):
         navigate_to('login')
+    st.markdown("**:gray[Use PC for best experience.]**")
 
 def login_page():
     st.header('Authorization Status', divider="green")
     try:
         if st.session_state.spotify_token is None:
-            token = auth_manager.get_access_token(as_dict=False)
-            st.session_state.spotify_token = token
-        sp = spotipy.Spotify(auth=st.session_state.spotify_token)
-        
-        user = sp.current_user()
+            token_info = auth_manager.get_cached_token()
+            st.session_state.spotify_token = token_info
+        st.session_state.spotify_sp = spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
+        user = st.session_state.spotify_sp.current_user()
         st.success(f"Logged in as {user['display_name']}")
         
-        if st.button('Go to Dashboard', help="Click twice to proceed. [Know Why](https://docs.streamlit.io/develop/concepts/design/buttons#:~:text=Buttons%20created%20with,becomes%20False.)."):
+        if st.button('Go to Dashboard', help="Click twice to proceed."):
             navigate_to('dashboard')
     except Exception as e:
         st.error("Login failed. Please try again.")
@@ -62,37 +79,49 @@ def login_page():
 def dashboard_page():
     st.header('Dashboard', divider="green")
 
-    sp = spotipy.Spotify(auth=st.session_state.spotify_token)
+    sp = get_spotify_client()
+    if not sp:
+        return
 
     artist_search = st.text_input("Search for an artist:")
 
     if artist_search:
-        results = sp.search(q=artist_search, type='artist', limit=50)  
-        exact_match_artist = None
+        try:
+            results = sp.search(q=artist_search, type='artist', limit=50)  
+            exact_match_artist = None
 
-        for artist in results['artists']['items']:
-            if artist['name'].lower() == artist_search.lower():
-                exact_match_artist = artist
-                break
+            for artist in results['artists']['items']:
+                if artist['name'].lower() == artist_search.lower():
+                    exact_match_artist = artist
+                    break
 
-        if exact_match_artist:
-            artist = exact_match_artist
-            st.subheader(f"Artist: {artist['name']}")
-            
-            if artist['images']:
-                st.image(artist['images'][0]['url'], width=200, caption=artist['name'])
+            if exact_match_artist:
+                artist = exact_match_artist
+                st.subheader(f"Artist: {artist['name']}")
+                
+                if artist['images']:
+                    st.image(artist['images'][0]['url'], width=200, caption=artist['name'])
 
-            option = st.radio("Choose Dashboard:", ['Personal Metrics', 'Global Metrics'])
+                option = st.radio("Choose Dashboard:", ['Personal Metrics', 'Global Metrics'])
 
-            if option == 'Personal Metrics':
-                user_dashboard(sp, artist)
+                if option == 'Personal Metrics':
+                    user_dashboard(sp, artist)
+                else:
+                    global_dashboard(sp, artist)
             else:
-                global_dashboard(sp, artist)
-        else:
-            st.error("Artist not found. Please enter the correct name and try again.")
+                st.error("Artist not found. Please enter the correct name and try again.")
+        except spotipy.exceptions.SpotifyException as e:
+            if e.http_status == 401:
+                st.error("Session expired, Refreshing token...")
+                st.session_state.spotify_sp = None
+                time.sleep(1)
+                navigate_to('login')
+            else:
+                st.error("An error occurred while fetching data.")
+                st.write(e)
 
 def user_dashboard(sp, artist):
-    st.header("Personal Metrics", divider="gray")
+    st.header("Personal Metrics", divider="gray", help="Based on the last 50 tracks you played on Spotify. Specific to the artist searched. Includes features.")
 
     artist_name = artist['name']
     user_tracks = sp.current_user_recently_played(limit=50)
@@ -118,7 +147,9 @@ def user_dashboard(sp, artist):
         for artist in item['track']['artists']
         if artist_name.lower() == artist['name'].lower()]
     artist_count = len(artist_plays)
-    st.metric(f"Recent Plays for {artist_name}", artist_count, help="Based on the last 50 tracks you played on Spotify. Includes features.")
+    st.metric(f"Recent Plays for {artist_name}", artist_count)
+
+    st.divider()
 
     cols_per_row = 6
 
@@ -139,8 +170,21 @@ def user_dashboard(sp, artist):
         fig.update_traces(marker_color="#1cc658")
         st.plotly_chart(fig)
 
-        #Code to print favourites by artist
+        st.divider()
 
+        favorite_songs = track_play_counts[track_play_counts['Play Count'] > 1]['Track Name'].tolist()
+
+        if favorite_songs:
+            formatted_songs = ', '.join(f"{song}" for song in favorite_songs[:-1])
+            if len(favorite_songs) > 1:
+                formatted_songs += f", {favorite_songs[-1]}"
+            else:
+                formatted_songs = f"{favorite_songs[0]}"
+
+            st.metric(f"Recent Favourites with {artist_name}",f"{formatted_songs}", help="Tracks with minimum two recent plays are considered as favourites.")
+
+            st.divider()
+            
         artist_albums = pd.DataFrame([
             {
             'Album Name': item['track']['album']['name'],
@@ -163,34 +207,12 @@ def user_dashboard(sp, artist):
                         st.image(album['Album Cover'], width=200, caption=f"{album['Album Name']} ({album['Year']}) • {album['Artist']}")
         else:
             st.markdown(":red-background[You have not listened to an album with this artist recently.]")
-
-        #Code to print first track
-
-        artist_albums = pd.DataFrame([
-            {
-            'Album Name': item['track']['album']['name'],
-            'Artist': ", ".join(a['name'] for a in item['track']['album']['artists']),
-            'Album Cover': item['track']['album']['images'][0]['url'],
-            'Year': pd.Timestamp(item['track']['album']['release_date']).year
-            }
-            for item in user_tracks['items']
-            if artist_name.lower() in [artist.lower() for artist in [a['name'] for a in item['track']['artists']]]
-        ]).drop_duplicates(subset='Album Name').sort_values(by='Year', ascending=False)
-
-        if not artist_albums.empty:
-            album_distribution = artist_albums['Album Name'].value_counts(normalize=True) * 100
-            fig2 = px.pie(
-                names=album_distribution.index,
-                values=album_distribution.values,
-                title=f"Album Distribution for {artist_name}",
-            )
-            st.plotly_chart(fig2)
     else:
         st.markdown(":red-background[You have not listened to this artist recently.]")
 
-    st.header("General Stats", divider="gray")
+    st.header("General Stats", divider="gray", help="Based on the last 50 tracks you played on Spotify.")
 
-    st.markdown("**Top Streams**", help="Based on the last 50 tracks you played on Spotify.")
+    st.markdown("**Top Streams**")
 
     if user_tracks['items']:
         track_play_counts = pd.DataFrame([
@@ -211,7 +233,6 @@ def user_dashboard(sp, artist):
         labels={'Play Count': 'Number of Plays'},
     )
     fig.update_traces(marker_color="#1cc658", hovertemplate='%{x}<br>Number of Plays=%{y}')
-
     fig.update_layout(
         xaxis=dict(
             showticklabels=False, 
@@ -221,7 +242,6 @@ def user_dashboard(sp, artist):
         yaxis_title="Number of Plays",
         margin=dict(l=40, r=40, t=40, b=80)
     )
-
     fig.add_annotation(
         text="▲  Hover over bars for track details.",
         xref="paper", yref="paper",
@@ -230,10 +250,11 @@ def user_dashboard(sp, artist):
         font=dict(size=14, color="gray"),
         align="center"
     )
-
     st.plotly_chart(fig)
 
-    st.markdown("**Top Albums**", help="Based on the last 50 tracks you played on Spotify.")
+    st.divider()
+
+    st.markdown("**Top Albums**")
     general_albums = pd.DataFrame([
         {
         'Album Name': item['track']['album']['name'],
@@ -256,7 +277,9 @@ def user_dashboard(sp, artist):
     else:
         st.markdown(":red-background[No albums found in your recent listening history.]")
 
-    st.markdown("**Top Genres**", help="Based on the last 50 tracks you played on Spotify.")
+    st.divider()
+
+    st.markdown("**Top Genres**")
 
     genres = [genre for item in user_tracks['items'] for genre in sp.artist(item['track']['artists'][0]['id'])['genres']]
     genre_counts = pd.DataFrame(genres, columns=['Genre']).value_counts(normalize=True).reset_index(name='Percentage')
@@ -267,51 +290,56 @@ def user_dashboard(sp, artist):
     )
     st.plotly_chart(fig_genre)
 
-    total_ms = sum(item['track']['duration_ms'] for item in user_tracks['items'])
-    total_minutes = total_ms // 60000
-    st.metric("Listening Duration", f"{total_minutes // 60} hrs {total_minutes % 60} mins", help="Based on the last 50 tracks you played on Spotify.")
+    st.divider()
 
-    st.markdown("**Listening Hours**", help="Based on the last 50 tracks you played on Spotify.")
+    today = datetime.now().date()
+    tracks_today = [
+        item for item in user_tracks['items']
+        if datetime.strptime(item['played_at'], "%Y-%m-%dT%H:%M:%S.%fZ").date() == today
+    ]
 
-    timestamps = [
-        pd.Timestamp(item['played_at']).hour
+    total_ms_today = sum(item['track']['duration_ms'] for item in tracks_today)
+    total_minutes_today = total_ms_today // 60000
+
+    st.metric(
+        "Duration Listened Today",
+        f"{total_minutes_today // 60} hrs {total_minutes_today % 60} mins"
+    )
+
+    st.divider()
+
+    st.markdown("**Recent Active Listening Days**", help="Based on the last 50 tracks played only. If you play 50 tracks or more on a single day, previous active days will not be visible.")
+
+    timestamps_days = [
+        pd.Timestamp(item['played_at']).dayofweek
         for item in user_tracks['items']
     ]
-    active_hours = pd.DataFrame(timestamps, columns=['Hour']).value_counts().reset_index(name='Count')
-    fig_time = px.bar(
-        active_hours,
-        x='Hour',
-        y='Count',
-        labels={'Hour': 'Hour of the Day', 'Count': 'Number of Tracks Played'}
-    )
-    st.plotly_chart(fig_time)
 
-    timestamps_with_day = [
-    {
-        'Hour': pd.Timestamp(item['played_at']).hour,
-        'Day': pd.Timestamp(item['played_at']).day_name()
-    }
-    for item in recent_tracks['items']
-    ]
-    time_df_with_day = pd.DataFrame(timestamps_with_day).value_counts().reset_index(name='Count')
-    fig3 = px.density_heatmap(
-        time_df_with_day,
-        x='Hour',
-        y='Day',
-        z='Count',
-        color_continuous_scale=px.colors.sequential.Plasma,
-        title="Time and Day Listening Preferences",
-        labels={'Hour': 'Hour of the Day', 'Day': 'Day of the Week'}
+    day_names = [calendar.day_name[day] for day in timestamps_days]
+    active_days = pd.DataFrame(day_names, columns=['Day']).value_counts().reset_index(name='Count')
+    days_order = list(calendar.day_name)
+    active_days['Day'] = pd.Categorical(active_days['Day'], categories=days_order, ordered=True)
+    active_days = active_days.sort_values('Day')
+
+    fig_days = px.imshow(
+        active_days[['Count']].T, 
+        labels=dict(x="Day", color="Count"),
+        x=active_days['Day'],
+        y=["Tracks Played"],
+        color_continuous_scale='Greens',
     )
-    st.plotly_chart(fig3)
+
+    st.plotly_chart(fig_days)
 
 def global_dashboard(sp, artist):
-    st.header("Global Metrics", divider="gray")
+    st.header("Global Metrics", divider="gray", help="Based on Spotify only.")
 
     popularity = artist['popularity']
     followers = artist['followers']['total']
     st.metric("Popularity Score", popularity, help="Out of 100.")
+    st.divider()
     st.metric("Follower Count", followers)
+    st.divider()
 
     top_tracks = sp.artist_top_tracks(artist['id'])['tracks']
     track_names = [track['name'] for track in top_tracks]
@@ -342,6 +370,43 @@ def global_dashboard(sp, artist):
     marker_color="#1cc658",                                    
     )
     st.plotly_chart(fig)
+
+    st.divider()
+
+    st.markdown("**Top Albums by Popularity**")
+    cols_per_row = 6
+
+    albums = sp.artist_albums(artist['id'], album_type='album', limit=50)['items']
+    unique_album_ids = list({album['id']: album for album in albums}.keys())
+    album_data = []
+
+    for album_id in unique_album_ids:
+        album = sp.album(album_id)
+        album_name = album['name']
+        album_cover = album['images'][0]['url'] if album['images'] else None
+        album_popularity = album['popularity']
+        release_date = album['release_date']
+        album_data.append({
+            'Album Name': album_name,
+            'Album Cover': album_cover,
+            'Popularity': album_popularity,
+            'Release Year': pd.Timestamp(release_date).year if release_date else "Unknown"
+        })
+    album_df = pd.DataFrame(album_data).sort_values(by='Popularity', ascending=False)
+
+    if not album_df.empty:
+        rows = [album_df.iloc[i:i + cols_per_row] for i in range(0, len(album_df), cols_per_row)]
+
+        for row in rows:
+            cols = st.columns(cols_per_row)
+            for col, (_, album) in zip(cols, row.iterrows()):
+                with col:
+                    if album['Album Cover']:
+                        st.image(album['Album Cover'], width=200, caption=f"{album['Album Name']} ({album['Release Year']})\nPopularity: {album['Popularity']}")
+                    else:
+                        st.write(f"{album['Album Name']} ({album['Release Year']})\nPopularity: {album['Popularity']}")
+
+    st.divider()
 
     genres = artist['genres']
     genre_df = pd.DataFrame({'Genre': genres, 'Count': [1] * len(genres)})
