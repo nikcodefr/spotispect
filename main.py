@@ -57,14 +57,13 @@ def navigate_to(page_name):
 def home_page():
     st.header("Spotify Artist Insights", divider="green")
     st.write("Analyze how you and the world listen to your favourite artists on Spotify.")
-    st.markdown("""
+    st.markdown(""" 
         - Explore personalized metrics for your favorite artists.
         - View global popularity and trends of top artists.
         - Visualize listening habits with charts and graphs.
     """)
     st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
-    if st.button('Login with Spotify', help="Click twice to proceed."):
-        navigate_to('login')
+    st.markdown(f'<a href="{auth_manager.get_authorize_url()}" style="background-color:green; text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
     st.markdown("**:gray[Use PC for best experience.]**")
 
 def login_page():
@@ -73,7 +72,6 @@ def login_page():
         if st.session_state.spotify_token is None:
             if not st.session_state.auth_url:
                 st.session_state.auth_url = auth_manager.get_authorize_url()
-            st.markdown(f'<a href="{st.session_state.auth_url}" style="color:green; text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
             st.stop()
         st.session_state.spotify_sp = spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
         user = st.session_state.spotify_sp.current_user()
