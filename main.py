@@ -59,7 +59,7 @@ st.markdown(f'<a href="{st.session_state.auth_url}" style="background-color:gree
 st.markdown("**:gray[Use PC for best experience.]**")
 
 # Authorization Status Section
-query_params = st.query_params()
+query_params = st.query_params
 if 'code' in query_params:
     st.header('Authorization Status', divider="green")
     try:
