@@ -65,6 +65,7 @@ def home_page():
     st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
     st.markdown(f'<a href="{auth_manager.get_authorize_url()}" style="background-color:green;color:white;text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
     st.markdown("**:gray[Use PC for best experience.]**")
+    navigate_to('login')
 
 def login_page():
     st.header('Authorization Status', divider="green")
