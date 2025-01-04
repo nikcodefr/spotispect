@@ -46,7 +46,6 @@ def get_spotify_client():
         st.session_state.spotify_token = None
         return None
 
-# Home Section
 st.header("Spotify Artist Insights", divider="green")
 st.write("Analyze how you and the world listen to your favourite artists on Spotify.")
 st.markdown(""" 
@@ -54,17 +53,16 @@ st.markdown("""
     - View global popularity and trends of top artists.
     - Visualize listening habits with charts and graphs.
 """)
-st.markdown("Connect your Spotify account to proceed.", help="By connecting your Spotify account, you are granting permission to SpotiSpect to access your [Spotify data](https://i.imgur.com/fhbO43z.png). You can remove this access at any time in your account settings. For more information about how SpotiSpect can use your personal data, please see SpotiSpect's privacy policy.")
-st.markdown(f'<a href="{st.session_state.auth_url}" style="background-color:green;color:white;text-decoration:none;padding:10px;">Click to Login</a>', unsafe_allow_html=True)
+st.markdown("Connect your Spotify account to proceed.")
+st.markdown(f'<a href="{st.session_state.auth_url}" style="background-color:green;color:white;text-decoration:none;padding:10px;">Login with Spotify</a>', unsafe_allow_html=True)
 st.markdown("**:gray[Use PC for best experience.]**")
 
-# Authorization Status Section
 query_params = st.query_params
 if 'code' in query_params:
     st.header('Authorization Status', divider="green")
     try:
         auth_code = query_params['code'][0]
-        token_info = auth_manager.get_access_token(code=auth_code, as_dict=True)
+        token_info = auth_manager.get_cached_token(code=auth_code)
         st.session_state.spotify_token = token_info
         st.session_state.spotify_sp = spotipy.Spotify(auth=token_info['access_token'])
         user = st.session_state.spotify_sp.current_user()
