@@ -172,6 +172,3 @@ cython_debug/
 
 #Reference notes
 notes.txt
-
-#Streamlit theme folder
-.streamlit
