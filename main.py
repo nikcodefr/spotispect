@@ -21,7 +21,8 @@ auth_manager = SpotifyOAuth(
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope='user-read-recently-played user-top-read user-read-private user-library-read',
-    show_dialog=True
+    show_dialog=True,
+    cache_path=None
 )
 
 if 'current_page' not in st.session_state:
@@ -35,8 +36,13 @@ def get_spotify_client():
     """Get a Spotify client, refreshing the token if necessary."""
     try:
         if not st.session_state.spotify_token or auth_manager.is_token_expired(st.session_state.spotify_token):
+            auth_url = auth_manager.get_authorize_url()
+            st.session_state.auth_url = auth_url
+
+            # Retrieve access token
             token_info = auth_manager.get_access_token(as_dict=True)
             st.session_state.spotify_token = token_info
+
         return spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
     except Exception as e:
         st.error("Error refreshing Spotify token. Please log in again.")
@@ -64,8 +70,8 @@ def login_page():
     st.header('Authorization Status', divider="green")
     try:
         if st.session_state.spotify_token is None:
-            token_info = auth_manager.get_cached_token()
-            st.session_state.spotify_token = token_info
+            st.markdown(f":green[Click To Login]({st.session_state.auth_url})")
+            st.stop()
         st.session_state.spotify_sp = spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
         user = st.session_state.spotify_sp.current_user()
         st.success(f"Logged in as {user['display_name']}")
