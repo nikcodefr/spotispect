@@ -31,6 +31,8 @@ if 'spotify_token' not in st.session_state:
     st.session_state.spotify_token = None
 if 'spotify_sp' not in st.session_state:
     st.session_state.spotify_sp = None
+if 'auth_url' not in st.session_state:
+    st.session_state.auth_url = None
 
 def get_spotify_client():
     """Get a Spotify client, refreshing the token if necessary."""
@@ -39,7 +41,6 @@ def get_spotify_client():
             auth_url = auth_manager.get_authorize_url()
             st.session_state.auth_url = auth_url
 
-            # Retrieve access token
             token_info = auth_manager.get_access_token(as_dict=True)
             st.session_state.spotify_token = token_info
 
@@ -70,6 +71,8 @@ def login_page():
     st.header('Authorization Status', divider="green")
     try:
         if st.session_state.spotify_token is None:
+            if not st.session_state.auth_url:
+                st.session_state.auth_url = auth_manager.get_authorize_url()
             st.markdown(f":green[Click To Login]({st.session_state.auth_url})")
             st.stop()
         st.session_state.spotify_sp = spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
