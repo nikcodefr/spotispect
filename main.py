@@ -73,7 +73,7 @@ def login_page():
         if st.session_state.spotify_token is None:
             if not st.session_state.auth_url:
                 st.session_state.auth_url = auth_manager.get_authorize_url()
-            st.markdown(f":green[Click To Login]({st.session_state.auth_url})")
+            st.markdown(f'<a href="{st.session_state.auth_url}" style="color:green; text-decoration:none;">Click to Login</a>', unsafe_allow_html=True)
             st.stop()
         st.session_state.spotify_sp = spotipy.Spotify(auth=st.session_state.spotify_token['access_token'])
         user = st.session_state.spotify_sp.current_user()
