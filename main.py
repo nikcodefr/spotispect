@@ -12,7 +12,7 @@ load_dotenv()
 
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-REDIRECT_URI = 'https://spotispect.streamlit.app/'
+REDIRECT_URI = 'http://localhost:5000'
 
 st.set_page_config(page_title="SpotiSpect", page_icon="https://i.imgur.com/f2Omj8I.png", layout="wide")
 
