@@ -27,7 +27,7 @@ pip install -r requirements.txt
 
 # Set up Environment Variables:
 - Go to your app's settings on Spotify's Developer Dashboard and find the values of your `CLIENT_ID` and `CLIENT_SECRET`.
-- Add the variables in a `.env` file. Refer `example.env`.
+- Add the variables in a `.env` file. Refer `example.env` in the repository structure.
 
 # Usage:
 Run the application file.
