@@ -4,7 +4,7 @@ Analyze how you and the world listen to your favorite artists on Spotify.
 - View global popularity and trends of top artists.
 - Visualize listening habits with charts and graphs.
   
-https://github.com/user-attachments/assets/a92d8044-0573-4017-87a8-b651cd5dc588
+https://github.com/user-attachments/assets/39764bb3-4ad7-4af7-8ba5-d410b9f393ec
 
 # Prerequisites:
 Ensure that `pip@24.3.1` and `python@3.12` are installed.
