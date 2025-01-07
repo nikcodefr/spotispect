@@ -15,7 +15,7 @@ Clone this repository and move into the project directory.
 git clone https://github.com/nikcodefr/spotispect.git
 cd spotispect
 ```
-Install the dependencies in `requirements.txt`
+Install the dependencies in `requirements.txt`.
 ```
 pip install -r requirements.txt
 ```
@@ -35,7 +35,7 @@ Run the application file.
 ```
 streamlit run main.py
 ```
-The application should be up and running on `localhost`.
+The application should be up and running on the `Local URL` visible in the terminal. Use `Ctrl + Click` to open the link on your browser.
   
 
 
