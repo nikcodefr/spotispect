@@ -22,8 +22,7 @@ pip install -r requirements.txt
 
 # Set up Spotify application:
 - Create a new application on [Spotify's Developer Dashboard](https://developer.spotify.com/dashboard).
-- Add ```http://localhost:5000``` under the `Redirect URIs` section. Ensure this matches the value of the `
-REDIRECT_URI` variable written in `main.py`.
+- Add ```http://localhost:5000``` under the `Redirect URIs` section. Ensure this matches the value of the `REDIRECT_URI` variable written in `main.py`.
 - Select the `Web API` checkbox and complete app creation.
 
 # Set up Environment Variables:
