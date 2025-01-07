@@ -6,7 +6,7 @@ Analyze how you and the world listen to your favorite artists on Spotify.
   
 https://github.com/user-attachments/assets/a92d8044-0573-4017-87a8-b651cd5dc588
 
-# Prerequisities:
+# Prerequisites:
 Ensure that `pip@24.3.1` and `python@3.12` are installed.
 
 # Installation:
